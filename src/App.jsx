@@ -70,7 +70,7 @@ const GAME_DATA = [
 // Jaartallen
 const YEARS = ['1995', '2003', '2012', '2016', '2023', '2024', '2024', '2025']; 
 
-// Tracks
+// Tracks (AANGEPASTE PADEN: /public/ is weggehaald)
 const TRACKS = [
   { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: '/audio/track1.mp3' },
   { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/track2.mp3' },
@@ -109,7 +109,7 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
     try {
         const audio = new Audio(item.src);
         audio.onerror = () => {
-            alert(`Kan bestand niet afspelen:\n${item.src}\n\nCheck of het bestand in 'public/audio/' staat.`);
+            alert(`Kan bestand niet afspelen:\n${item.src}\n\nZorg dat in je projectmap de map 'public/audio/' bestaat met het bestand.`);
             setPlayingId(null);
         };
         audioRef.current = audio;
@@ -145,23 +145,23 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
              const itemLabel = item.label || item; 
              const isPlaying = playingId === itemId;
              
-             const timesUsed = connections.filter(c => 
-                 (type === 'year' ? c.year === itemId : c.trackId === itemId)
-             ).length;
-             
+             // Check of dit item al ergens anders gebruikt is (vaker dan toegestaan)
              const totalAvailable = items.filter(i => (i.id || i) === itemId).length;
+             const timesUsed = connections.filter(c => (type === 'year' ? c.year === itemId : c.trackId === itemId)).length;
              
-             const isSelectedHere = connections.find(c => 
-                c.questionId === currentQuestionId && 
-                (type === 'year' ? c.year === itemId : c.trackId === itemId)
-             );
+             const isSelectedHere = connections.find(c => c.questionId === currentQuestionId && (type === 'year' ? c.year === itemId : c.trackId === itemId));
              
+             // Als het item "op" is (vaker gebruikt dan beschikbaar) én niet door ons, dan is hij bezet
              const isFullyBooked = timesUsed >= totalAvailable;
              const isUsedByOthers = isFullyBooked && !isSelectedHere;
+             
+             // Vind een vraag die dit item gebruikt (als voorbeeld)
+             const usedByConnection = connections.find(c => (type === 'year' ? c.year === itemId : c.trackId === itemId) && c.questionId !== currentQuestionId);
+             const usedByQuestion = usedByConnection ? GAME_DATA.find(q => q.id === usedByConnection.questionId) : null;
 
              return (
               <div key={`${itemId}-${index}`} className={`flex flex-col rounded-2xl border-2 transition-all group overflow-hidden ${isSelectedHere ? 'bg-green-900/30 border-green-500' : (isUsedByOthers ? 'bg-slate-800/50 border-orange-500/30' : 'bg-slate-800 border-slate-700 hover:border-indigo-400')}`}>
-                 <div className="flex items-center gap-3 p-3 min-h-[4rem]">
+                <div className="flex items-center gap-3 p-3 min-h-[4rem]">
                    {type === 'track' && (
                        <button 
                           onClick={(e) => handleLocalPlay(e, item)}
@@ -171,6 +171,7 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
                        </button>
                    )}
 
+                   {/* DE KEUZE KNOP - GECENTREERD */}
                    <button onClick={() => handleConfirmSelection(itemId)} className="flex-grow flex items-center justify-center text-center h-full">
                          <div className="flex flex-col items-center gap-1 w-full">
                             <div className="flex items-center gap-2 justify-center">
@@ -553,51 +554,6 @@ function GameContent() {
        return acc + (q.correctYear === c.year ? 1 : 0) + (q.correctTrackId === c.trackId ? 1 : 0);
     }, 0);
 
-    if (!showGlobalResults) {
-        const activePlayers = lobbyPlayers.filter(p => p.teamName !== 'Spelleider');
-        const finishedCount = activePlayers.filter(p => p.status === 'finished').length;
-
-        return (
-            <div className="min-h-screen w-full bg-slate-950 text-slate-100 p-4 pb-24 font-sans overflow-y-auto">
-                <div className="max-w-xl mx-auto mt-10 text-center animate-fade-in">
-                    <div className="mb-8">
-                        <div className="inline-block p-4 rounded-full bg-green-500/20 text-green-400 mb-4 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                            <CheckCircle size={48} />
-                        </div>
-                        <h2 className="text-3xl font-black text-white mb-2">Antwoorden Ingediend!</h2>
-                        <p className="text-slate-400">Even geduld tot iedereen klaar is...</p>
-                    </div>
-
-                    <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl text-left">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex justify-between items-center">
-                            <span>Status</span>
-                            <span className="text-white">{finishedCount} / {activePlayers.length}</span>
-                        </h3>
-                        <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
-                            {activePlayers.map(p => (
-                                <div key={p.id} className="flex justify-between items-center p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                                    <span className={`font-bold ${p.userId === user.uid ? 'text-purple-400' : 'text-slate-300'}`}>
-                                        {p.teamName} {p.userId === user.uid && "(Jij)"}
-                                    </span>
-                                    {p.status === 'finished' ? (
-                                        <span className="text-green-400 flex items-center gap-1 text-xs font-bold bg-green-900/20 px-2 py-1 rounded">
-                                            <CheckCircle size={12} /> KLAAR
-                                        </span>
-                                    ) : (
-                                        <span className="text-blue-400 flex items-center gap-1 text-xs font-bold bg-blue-900/20 px-2 py-1 rounded animate-pulse">
-                                            <Loader2 size={12} className="animate-spin" /> BEZIG
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                {isAdmin && <button onClick={() => setShowAdminDashboard(true)} className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-2xl shadow-2xl z-50 flex items-center gap-2 font-bold"><BarChart3 size={24} /></button>}
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen w-full bg-slate-950 text-slate-100 p-4 pb-24 font-sans overflow-y-auto">
             <div className="max-w-2xl mx-auto mt-4 animate-fade-in">
@@ -629,7 +585,7 @@ function GameContent() {
                    </div>
                 </div>
                 
-                {/* Resultaten Overzicht */}
+                {/* Resultaten Overzicht (Nieuw!) */}
                 <div className="space-y-4 mt-8">
                   <h3 className="text-xl font-bold text-white text-center">Jouw Resultaten & Antwoorden</h3>
                   {GAME_DATA.map(q => {
@@ -765,6 +721,47 @@ function GameContent() {
          connections={connections}
          currentQuestionId={activeModal?.questionId}
       />
+
+         {showGlobalResults && (
+            <div className="fixed inset-0 z-[70] bg-black/80 flex items-start justify-center p-6 overflow-y-auto">
+               <div className="w-full max-w-4xl bg-slate-900 rounded-3xl p-6 border border-white/10 shadow-2xl">
+                  <div className="flex justify-between items-center mb-4">
+                     <h3 className="text-2xl font-bold">Eindresultaten</h3>
+                     <button onClick={() => setShowGlobalResults(false)} className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700"><X/></button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {lobbyPlayers.filter(p => p.teamName !== 'Spelleider').map(p => {
+                         const total = (p.score || 0) + (p.bonusPoints || 0);
+                         return (
+                            <div key={p.id} className="bg-slate-800 p-4 rounded-2xl border border-slate-700/40">
+                                 <div className="flex justify-between items-center mb-3">
+                                    <div className="font-bold text-lg">{p.teamName}</div>
+                                    <div className="text-2xl font-black">{total}</div>
+                                 </div>
+                                 <div className="space-y-2 text-sm">
+                                    {GAME_DATA.map(q => {
+                                        const conn = p.connections?.find(c => c.questionId === q.id) || {};
+                                        const yearOk = conn.year === q.correctYear;
+                                        const trackOk = conn.trackId === q.correctTrackId;
+                                        const track = TRACKS.find(t => t.id === conn.trackId);
+                                        return (
+                                           <div key={q.id} className="flex justify-between items-center bg-slate-900 p-2 rounded-lg border border-slate-800">
+                                                <div className="text-xs text-slate-300">{q.question}</div>
+                                                <div className="text-right">
+                                                    <div className={`text-[12px] ${yearOk ? 'text-green-300' : 'text-red-300'}`}>{conn.year || '-'}</div>
+                                                    <div className={`text-[12px] ${trackOk ? 'text-green-300' : 'text-red-300'}`}>{track ? track.label : '-'}</div>
+                                                </div>
+                                           </div>
+                                        );
+                                    })}
+                                 </div>
+                            </div>
+                         );
+                     })}
+                  </div>
+               </div>
+            </div>
+         )}
 
     </div>
   );
