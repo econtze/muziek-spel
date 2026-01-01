@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body, #root {
+	height: 100%;
+}
+
+/* Zorg dat de browser-safe-areas (top/bottom) dezelfde achtergrond krijgen als de app
+	 zodat er geen witte randen verschijnen op mobiel. We gebruiken Tailwind utilities via @apply. */
+body {
+	@apply bg-gradient-to-br from-indigo-950 to-purple-950;
+	min-height: 100vh;
+	background-repeat: no-repeat;
+	background-attachment: fixed;
+	/* vul ook de safe-area achter de notch en home-indicator */
+	padding-top: env(safe-area-inset-top);
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Fallback voor browsers die @apply niet supporten in this setup: */
+@supports not (background: linear-gradient(var(--tw-gradient-stops))) {
+	body { background-color: #0f172a; }
+}
