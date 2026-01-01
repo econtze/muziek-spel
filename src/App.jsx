@@ -67,19 +67,19 @@ const GAME_DATA = [
   { id: 'q8', question: "Welk nummer was ongelovelijk populair tijdens onze vakantie in Malta en in welk jaar was dit?", correctYear: '2016', correctTrackId: 't8' },
 ];
 
-// Jaartallen (Aangepast naar 2014 en 2012 correctie)
+// Jaartallen
 const YEARS = ['1995', '2003', '2012', '2014', '2016', '2023', '2024', '2025']; 
 
-// Tracks
+// Tracks (Met Hoofdletters in paden!)
 const TRACKS = [
   { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: '/audio/track1.mp3' },
-  { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/track2.mp3' },
-  { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: '/audio/track3.mp3' },
-  { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: '/audio/track4.mp3' },
-  { id: 't5', label: 'Track 5', title: 'Canto ostinato - Simeon ten Holt', src: '/audio/track5.mp3' },
-  { id: 't6', label: 'Track 6', title: 'Love Story - Taylor swift', src: '/audio/track6.mp3' },
-  { id: 't7', label: 'Track 7', title: 'Bek Vol Beschuit - Barfbag', src: '/audio/track7.mp3' },
-  { id: 't8', label: 'Track 8', title: "Will Griggg's On Fire - DJ Kicken", src: '/audio/track8.mp3' },
+  { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/Track2.mp3' },
+  { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: '/audio/Track3.mp3' },
+  { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: '/audio/Track4.mp3' },
+  { id: 't5', label: 'Track 5', title: 'Canto ostinato - Simeon ten Holt', src: '/audio/Track5.mp3' },
+  { id: 't6', label: 'Track 6', title: 'Love Story - Taylor swift', src: '/audio/Track6.mp3' },
+  { id: 't7', label: 'Track 7', title: 'Bek Vol Beschuit - Barfbag', src: '/audio/Track7.mp3' },
+  { id: 't8', label: 'Track 8', title: "Will Griggg's On Fire - DJ Kicken", src: '/audio/Track8.mp3' },
 ];
 
 // --- Sub Components ---
@@ -109,7 +109,8 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
     try {
         const audio = new Audio(item.src);
         audio.onerror = () => {
-            alert(`Kan bestand niet afspelen:\n${item.src}\n\nCheck of het bestand in 'public/audio/' staat.`);
+            // Geen alert, alleen log in console.
+            console.error("Audio fout: Bestand niet gevonden of formaat niet ondersteund.", item.src);
             setPlayingId(null);
         };
         audioRef.current = audio;
@@ -164,7 +165,6 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
                        </button>
                    )}
 
-                   {/* DE KEUZE KNOP - GECENTREERD ZONDER EXTRA TEKST */}
                    <button onClick={() => handleConfirmSelection(itemId)} className="flex-grow flex items-center justify-center text-center h-full">
                          <div className="flex flex-col items-center gap-1 w-full">
                             <div className="flex items-center gap-2 justify-center">
