@@ -21,7 +21,7 @@ class ErrorBoundary extends Component {
         <div className="min-h-screen w-full bg-slate-900 text-red-500 p-8 flex flex-col items-center justify-center text-center">
           <AlertTriangle size={64} className="mb-4" />
           <h1 className="text-xl font-bold">Er ging iets mis!</h1>
-          <button onClick={() => window.location.reload()} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded">Herladen</button>
+          <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded">Reset & Herlaad</button>
         </div>
       );
     }
@@ -61,15 +61,17 @@ const TRACKS = [
 
 function GameContent() {
   const [user, setUser] = useState(null);
-  const [teamName, setTeamName] = useState('');
-  const [hasJoined, setHasJoined] = useState(false);
+  
+  // State met LocalStorage initialisatie (Onthouden bij refresh)
+  const [teamName, setTeamName] = useState(() => localStorage.getItem('musicGame_teamName') || '');
+  const [hasJoined, setHasJoined] = useState(() => localStorage.getItem('musicGame_hasJoined') === 'true');
+  const [connections, setConnections] = useState(() => JSON.parse(localStorage.getItem('musicGame_connections') || '[]'));
+  const [localStatus, setLocalStatus] = useState(() => localStorage.getItem('musicGame_localStatus') || 'waiting'); 
+  
   const [isReady, setIsReady] = useState(false); 
   const [isAdmin, setIsAdmin] = useState(false);
-  
-  const [globalStatus, setGlobalStatus] = useState('lobby'); 
-  const [connections, setConnections] = useState([]); 
+  const [globalStatus, setGlobalStatus] = useState(null); // null = loading
   const [selectedQuestionId, setSelectedQuestionId] = useState(null);
-  const [localStatus, setLocalStatus] = useState('waiting'); // waiting (lobby) -> playing (game) -> finished (score)
   
   const [leaderboard, setLeaderboard] = useState([]);
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
@@ -78,6 +80,12 @@ function GameContent() {
   const itemRefs = useRef({});
   const setItemRef = (id, el) => { itemRefs.current[id] = el; };
 
+  // --- Opslaan in LocalStorage bij wijzigingen ---
+  useEffect(() => { localStorage.setItem('musicGame_teamName', teamName); }, [teamName]);
+  useEffect(() => { localStorage.setItem('musicGame_hasJoined', hasJoined); }, [hasJoined]);
+  useEffect(() => { localStorage.setItem('musicGame_connections', JSON.stringify(connections)); }, [connections]);
+  useEffect(() => { localStorage.setItem('musicGame_localStatus', localStatus); }, [localStatus]);
+
   // Init Auth
   useEffect(() => {
     signInAnonymously(auth).catch(e => console.error(e));
@@ -85,25 +93,26 @@ function GameContent() {
     return () => unsub();
   }, []);
 
-  // Global Game State Listener
+  // Global Game State Listener & Sync
   useEffect(() => {
      const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'global_game_control', 'main'), (snap) => {
         if (snap.exists()) {
            const data = snap.data();
            setGlobalStatus(data.status); 
            
-           // Logic: Wanneer switchen we van scherm?
+           // Logic: Synchroniseer lokale status met globale status
            
            // 1. Spel start: Iedereen die in de lobby zit ('waiting') gaat naar 'playing'
            if (data.status === 'playing' && localStatus === 'waiting' && hasJoined) {
               setLocalStatus('playing');
            }
            
-           // 2. Reset: Admin reset spel -> Iedereen terug naar 'waiting' (Lobby)
-           if (data.status === 'lobby' && localStatus !== 'waiting') {
+           // 2. Reset: Admin reset spel -> Alles wissen en terug naar lobby
+           if (data.status === 'lobby' && localStatus !== 'waiting' && localStatus !== 'login') {
               setLocalStatus('waiting');
               setConnections([]);
               setIsReady(false);
+              localStorage.removeItem('musicGame_connections'); // Wis opgeslagen lijntjes
            }
         } else {
            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'global_game_control', 'main'), { status: 'lobby' });
@@ -132,11 +141,14 @@ function GameContent() {
   const joinLobby = () => {
     if (!teamName || !user) return;
     setHasJoined(true);
-    setLocalStatus('waiting'); // Start altijd in waiting/lobby modus
     
-    // Check of spel al bezig is, zo ja, zet status gelijk goed in DB zodat je mee kan doen (laatkomer)
-    const initialStatus = globalStatus === 'playing' ? 'playing' : 'lobby';
-    if (globalStatus === 'playing') setLocalStatus('playing');
+    // Bepaal startstatus: Als spel al bezig is, mag je direct meedoen (late joiner)
+    // Maar we zetten hem eerst op 'waiting' zodat de UI netjes laadt
+    let initialStatus = 'waiting';
+    if (globalStatus === 'playing') {
+       initialStatus = 'playing';
+    }
+    setLocalStatus(initialStatus);
 
     setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
       teamName, userId: user.uid, score: 0, status: initialStatus, isReady: false, joinedAt: serverTimestamp()
@@ -162,7 +174,6 @@ function GameContent() {
       if (q.correctTrackId === c.trackId) score++;
     });
     
-    // DIRECT NAAR SCOREBORD
     setLocalStatus('finished'); 
     
     setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
@@ -173,7 +184,7 @@ function GameContent() {
   const resetGame = async () => {
     if(!confirm("LET OP: Dit wist alle scores en zet iedereen terug in de lobby.")) return;
     
-    // 1. Zet Global status naar lobby (dit triggert de reset bij alle clients)
+    // 1. Zet Global status naar lobby
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'global_game_control', 'main'), { status: 'lobby' });
     
     // 2. Wis alle spelersdata
