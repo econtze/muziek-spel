@@ -61,7 +61,7 @@ const GAME_DATA = [
   { id: 'q2', question: "Welk nummer stond op nummer 1 toen de jongste van ons werd geboren en in welk jaar was dit?", correctYear: '2003', correctTrackId: 't2' },
   { id: 'q3', question: "Welk nummer is typerend voor de wintersport in Solden en in welk jaar was dit?", correctYear: '2023', correctTrackId: 't3' },
   { id: 'q4', question: "Welke iconische solo is gezongen op de avond van 4-11-.... en in welk jaar was dit?", correctYear: '2014', correctTrackId: 't4' },
-  { id: 'q5', git add .question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't5' },
+  { id: 'q5', question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't5' },
   { id: 'q6', question: "Op welk nummer kwam de eerste bruidegom van onze vriendengroep oplopen en in welk jaar was dit?", correctYear: '2024', correctTrackId: 't6' },
   { id: 'q7', question: "Wie trad er op de laatste editie van WWW en in welk jaar was dit?", correctYear: '2025', correctTrackId: 't7' },
   { id: 'q8', question: "Welk nummer was ongelovelijk populair tijdens onze vakantie in Malta en in welk jaar was dit?", correctYear: '2016', correctTrackId: 't8' },
