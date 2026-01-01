@@ -72,7 +72,7 @@ const YEARS = ['1995', '2003', '2012', '2016', '2023', '2024', '2024', '2025'];
 
 // Tracks (AANGEPASTE PADEN: /public/ is weggehaald)
 const TRACKS = [
-  { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: 'public/audio/track1.mp3' },
+  { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: 'muziek-spel/public/audio/track1.mp3' },
   { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: 'public/audio/track2.mp3' },
   { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: 'public/audio/track3.mp3' },
   { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: 'public/audio/track4.mp3' },
