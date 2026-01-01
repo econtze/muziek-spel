@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { Play, Pause, Music, HelpCircle, Calendar, RefreshCcw, CheckCircle, Users, Trophy, Loader2, Rocket, Clock, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Music, HelpCircle, Calendar, RefreshCcw, CheckCircle, Users, Trophy, Loader2, Rocket, Clock, AlertTriangle, Lock, Trash2, PlayCircle } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
 
 // --- Firebase Setup ---
 
-// Jouw configuratie (deze staat goed!)
 const firebaseConfig = {
   apiKey: "AIzaSyBsE1MwoImcCiMmtI6fglbRF8cs3pmmMF8",
   authDomain: "muziekspel-8e190.firebaseapp.com",
@@ -16,12 +15,10 @@ const firebaseConfig = {
   appId: "1:574627950104:web:e5b9965e3d342f33315d6d"
 };
 
-// Initialiseer de services
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// We gebruiken hier de projectId als ID voor de opslagpaden
 const appId = "muziekspel-8e190"; 
 
 // --- Game Constants ---
@@ -45,16 +42,21 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
-  const [authError, setAuthError] = useState(null); // Nieuw: error state
+  const [isReady, setIsReady] = useState(false); 
+  const [authError, setAuthError] = useState(null);
+  
+  // --- Admin State ---
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // --- Game State ---
+  const [globalStatus, setGlobalStatus] = useState('lobby'); // 'lobby' of 'playing'
   const [connections, setConnections] = useState([]); 
   const [selectedQuestionId, setSelectedQuestionId] = useState(null);
-  const [status, setStatus] = useState('lobby'); // 'lobby', 'playing', 'finished'
+  const [localStatus, setLocalStatus] = useState('waiting'); // 'waiting' (in lobby), 'playing', 'finished'
   
   // --- Multiplayer State ---
   const [leaderboard, setLeaderboard] = useState([]);
-  const [activePlayers, setActivePlayers] = useState([]);
+  const [lobbyPlayers, setLobbyPlayers] = useState([]);
   const [activeTab, setActiveTab] = useState('game'); 
 
   // --- Refs ---
@@ -66,27 +68,48 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Check of we al ingelogd zijn, anders anoniem inloggen
-        // We vangen eventuele errors nu netjes op
         await signInAnonymously(auth);
       } catch (err) {
         console.error("Firebase Auth Error:", err);
         setAuthError(err.message);
       }
     };
-    
     initAuth();
-    
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
-        setAuthError(null); // Reset error als inloggen lukt
+        setAuthError(null);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // --- Real-time Listeners ---
+  // --- Global State Listener ---
+  useEffect(() => {
+     const globalDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'global_game_control', 'main');
+     
+     const unsubscribe = onSnapshot(globalDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+           const data = docSnap.data();
+           setGlobalStatus(data.status); 
+           
+           if (data.status === 'playing' && localStatus === 'waiting' && hasJoined) {
+              setLocalStatus('playing');
+           }
+           if (data.status === 'lobby' && localStatus !== 'waiting') {
+              setLocalStatus('waiting');
+              setConnections([]);
+              setIsReady(false);
+           }
+        } else {
+           setDoc(globalDocRef, { status: 'lobby' });
+        }
+     });
+     return () => unsubscribe();
+  }, [localStatus, hasJoined]);
+
+
+  // --- Players & Scores Listener ---
   useEffect(() => {
     if (!user) return;
     
@@ -98,7 +121,8 @@ export default function App() {
         allData.push({ id: doc.id, ...doc.data() });
       });
 
-      // Filter 1: Finished Games (Leaderboard)
+      setLobbyPlayers(allData);
+
       const finished = allData.filter(d => d.status === 'finished');
       finished.sort((a, b) => {
          if (b.score !== a.score) return b.score - a.score;
@@ -120,10 +144,6 @@ export default function App() {
 
       setLeaderboard(finalLeaderboard);
 
-      // Filter 2: Active Players
-      const playing = allData.filter(d => d.status === 'playing');
-      setActivePlayers(playing);
-
     }, (error) => {
       console.error("Firestore Error:", error);
     });
@@ -131,29 +151,12 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  // --- Progress Sync Logic ---
-  useEffect(() => {
-    if (!user || !hasJoined || status === 'finished') return;
+  // --- Actions ---
 
-    const progressPercent = Math.round((connections.filter(c => c.year && c.trackId).length / GAME_DATA.length) * 100);
-    
-    const updateProgress = async () => {
-       try {
-         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
-           progress: progressPercent
-         });
-       } catch (e) {
-         // Ignore update errors
-       }
-    };
-    updateProgress();
-  }, [connections, user, hasJoined, status]);
-
-  // --- Game Actions ---
-  const joinGame = async () => {
+  const joinLobby = async () => {
     if (!teamName || !user) return;
     setHasJoined(true);
-    setStatus('playing');
+    setLocalStatus('waiting');
     
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
@@ -161,7 +164,8 @@ export default function App() {
         userId: user.uid,
         score: 0,
         progress: 0,
-        status: 'playing',
+        status: 'lobby',
+        isReady: false,
         joinedAt: serverTimestamp()
       });
     } catch (e) {
@@ -169,8 +173,61 @@ export default function App() {
     }
   };
 
+  const toggleReady = async () => {
+     if (!user) return;
+     const newReadyState = !isReady;
+     setIsReady(newReadyState);
+     // Gebruik setDoc met merge ipv updateDoc, voor het geval de admin meespeelt zonder DB entry
+     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
+        isReady: newReadyState
+     }, { merge: true });
+  };
+
+  // --- Admin Actions ---
+
+  const handleAdminLogin = () => {
+     const password = prompt("Voer admin wachtwoord in:");
+     if (password === "edkroket") { 
+        setIsAdmin(true);
+        // Direct doorgaan naar lobby, ook zonder naam
+        setHasJoined(true);
+        setLocalStatus('waiting');
+        if (!teamName) setTeamName("Spelleider"); // Fallback naam voor UI
+     } else {
+        alert("Fout wachtwoord");
+     }
+  };
+
+  const startGlobalGame = async () => {
+     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'global_game_control', 'main'), {
+        status: 'playing',
+        startedAt: serverTimestamp()
+     });
+  };
+
+  const resetGameData = async () => {
+     if(!confirm("LET OP: Dit wist ALLE spelers en scores en zet het spel terug naar de lobby. Weet je het zeker?")) return;
+     
+     // 1. Zet status op lobby
+     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'global_game_control', 'main'), {
+        status: 'lobby'
+     });
+
+     // 2. Verwijder alle spelers uit de DB
+     try {
+        const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'music_game_state'));
+        const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
+        await Promise.all(deletePromises);
+        alert("Spel is gereset! Iedereen moet opnieuw inloggen.");
+     } catch (e) {
+        console.error("Fout bij resetten:", e);
+        alert("Er ging iets mis bij het resetten.");
+     }
+  };
+
+  // --- Game Logic Actions ---
   const handleQuestionClick = (qId) => {
-    if (status === 'finished') return;
+    if (localStatus !== 'playing') return;
     setSelectedQuestionId(qId);
     if (!connections.find(c => c.questionId === qId)) {
       setConnections([...connections, { questionId: qId, year: null, trackId: null }]);
@@ -178,14 +235,14 @@ export default function App() {
   };
 
   const handleYearClick = (year) => {
-    if (!selectedQuestionId || status === 'finished') return;
+    if (!selectedQuestionId || localStatus !== 'playing') return;
     setConnections(prev => prev.map(c => 
       c.questionId === selectedQuestionId ? { ...c, year: year } : c
     ));
   };
 
   const handleTrackClick = (trackId) => {
-    if (!selectedQuestionId || status === 'finished') return;
+    if (!selectedQuestionId || localStatus !== 'playing') return;
     setConnections(prev => prev.map(c => 
       c.questionId === selectedQuestionId ? { ...c, trackId: trackId } : c
     ));
@@ -197,7 +254,7 @@ export default function App() {
   };
 
   const submitScore = async () => {
-    if (!user || status === 'finished') return;
+    if (!user || localStatus === 'finished') return;
     if (!isGameComplete()) return; 
     
     let baseScore = 0;
@@ -207,16 +264,20 @@ export default function App() {
       if (question.correctTrackId === conn.trackId) baseScore++;
     });
     
-    setStatus('finished');
+    setLocalStatus('finished');
     setActiveTab('scores'); 
 
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
+      // Gebruik setDoc met merge voor robuustheid (voor het geval admin meespeelt)
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'music_game_state', user.uid), {
         score: baseScore,
         status: 'finished',
         progress: 100,
-        timestamp: serverTimestamp()
-      });
+        timestamp: serverTimestamp(),
+        // Zorg dat teamnaam ook wordt opgeslagen als die nog niet bestond
+        teamName: teamName || "Spelleider", 
+        userId: user.uid
+      }, { merge: true });
     } catch (e) {
       console.error("Error submitting score", e);
     }
@@ -251,7 +312,7 @@ export default function App() {
               x2: yRect.left + yRect.width / 2 - containerRect.left,
               y2: yRect.bottom - containerRect.top,
               color: getColorForId(conn.questionId),
-              isCorrect: status === 'finished' ? (GAME_DATA.find(q => q.id === conn.questionId).correctYear === conn.year) : null
+              isCorrect: localStatus === 'finished' ? (GAME_DATA.find(q => q.id === conn.questionId).correctYear === conn.year) : null
             });
           }
         }
@@ -266,7 +327,7 @@ export default function App() {
               x2: tRect.left + tRect.width / 2 - containerRect.left,
               y2: tRect.top - containerRect.top,
               color: getColorForId(conn.questionId),
-              isCorrect: status === 'finished' ? (GAME_DATA.find(q => q.id === conn.questionId).correctTrackId === conn.trackId) : null
+              isCorrect: localStatus === 'finished' ? (GAME_DATA.find(q => q.id === conn.questionId).correctTrackId === conn.trackId) : null
             });
           }
         }
@@ -277,75 +338,139 @@ export default function App() {
     window.addEventListener('resize', updateLines);
     const t = setTimeout(updateLines, 500);
     return () => { window.removeEventListener('resize', updateLines); clearTimeout(t); };
-  }, [connections, status, activeTab, hasJoined]);
+  }, [connections, localStatus, activeTab, hasJoined]);
 
 
-  // --- Render ---
+  // --- RENDER ---
 
-  // ERROR SCHERM: Als Auth niet werkt
+  // ERROR SCHERM
   if (authError) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4">
         <div className="bg-red-900/20 border border-red-500/50 p-8 rounded-2xl shadow-2xl max-w-md w-full">
-           <div className="flex items-center gap-3 text-red-500 mb-4">
-             <AlertTriangle size={32} />
-             <h2 className="text-xl font-bold">Configuratie Fout</h2>
-           </div>
-           <p className="text-slate-300 mb-4">
-             De app kan niet verbinden met Firebase Authentication. Dit betekent meestal dat je de "Anonymous" (Anoniem) inlogmethode nog niet hebt aangezet.
-           </p>
-           <div className="bg-slate-950 p-4 rounded text-xs font-mono text-red-300 mb-4 overflow-auto">
-             {authError}
-           </div>
-           <ul className="text-sm text-slate-400 list-disc list-inside space-y-1">
-             <li>Ga naar Firebase Console &gt; Build &gt; Authentication</li>
-             <li>Klik op tabblad 'Sign-in method'</li>
-             <li>Zet 'Anonymous' op Enabled</li>
-           </ul>
-           <button onClick={() => window.location.reload()} className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg">
-             Ik heb het gefixt, probeer opnieuw
-           </button>
+           <h2 className="text-xl font-bold text-red-500 mb-2">Configuratie Fout</h2>
+           <p className="text-slate-300 text-sm">Zet 'Anonymous' auth aan in Firebase Console.</p>
         </div>
       </div>
     );
   }
 
-  // LOBBY SCHERM
+  // LOGIN SCHERM
   if (!hasJoined) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4 relative">
         <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-500 mb-6 text-center">
             Muziek Connectie
           </h1>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Team Naam</label>
-              <input 
-                type="text" 
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-pink-500 outline-none"
-                placeholder="Bijv. De Winnies"
-              />
-            </div>
+            <input 
+              type="text" 
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-pink-500 outline-none"
+              placeholder="Team Naam"
+            />
             <button 
-              onClick={joinGame}
+              onClick={joinLobby}
               disabled={!teamName || !user}
-              className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 flex justify-center"
+              className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50"
             >
-              {!user ? <Loader2 className="animate-spin" /> : 'Start Spel'}
+              Ga naar Lobby
             </button>
-            {!user && <p className="text-xs text-center text-slate-500">Verbinden met database...</p>}
           </div>
         </div>
+        
+        {/* Admin Login Button */}
+        <button 
+          onClick={handleAdminLogin}
+          className="absolute bottom-4 right-4 text-slate-600 hover:text-slate-400 p-2"
+        >
+          <Lock size={16} />
+        </button>
       </div>
     );
   }
 
+  // LOBBY SCHERM
+  if (localStatus === 'waiting') {
+     return (
+        <div className="min-h-screen bg-slate-900 text-slate-100 p-4 font-sans pb-24">
+           <div className="max-w-2xl mx-auto mt-10">
+              <header className="text-center mb-10">
+                 <h2 className="text-3xl font-bold text-white mb-2">Wachtruimte</h2>
+                 <p className="text-slate-400">Wacht tot iedereen er is...</p>
+              </header>
+
+              <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl mb-8">
+                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <Users className="text-pink-500"/> Aanwezige Teams ({lobbyPlayers.length})
+                 </h3>
+                 <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    {lobbyPlayers.map(p => (
+                       <div key={p.id} className="flex items-center justify-between bg-slate-900 p-3 rounded-lg border border-slate-800">
+                          <span className="font-medium text-slate-200">{p.teamName}</span>
+                          {p.isReady ? (
+                             <span className="flex items-center gap-1 text-green-400 text-sm font-bold bg-green-900/20 px-2 py-1 rounded">
+                                <CheckCircle size={14}/> Klaar
+                             </span>
+                          ) : (
+                             <span className="text-slate-500 text-sm italic">Wachten...</span>
+                          )}
+                       </div>
+                    ))}
+                 </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                 <button 
+                    onClick={toggleReady}
+                    className={`
+                       w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2
+                       ${isReady 
+                          ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/30' 
+                          : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}
+                    `}
+                 >
+                    {isReady ? 'Je bent klaar! (Klik om te annuleren)' : 'Klik hier als je klaar bent!'}
+                 </button>
+                 
+                 <p className="text-center text-slate-500 text-sm mt-4 animate-pulse">
+                    Wachten op de spelleider om te starten...
+                 </p>
+              </div>
+           </div>
+           
+           {/* Admin Panel Inline */}
+           {isAdmin && (
+              <div className="fixed bottom-4 left-4 right-4 bg-slate-800 border-2 border-purple-500 p-4 rounded-xl shadow-2xl z-50 flex flex-col sm:flex-row justify-between items-center gap-4 animate-slide-up">
+                 <div className="flex items-center gap-2">
+                    <Lock className="text-purple-500" size={20} />
+                    <span className="font-bold text-white">Admin Paneel</span>
+                 </div>
+                 <div className="flex gap-2 w-full sm:w-auto">
+                    <button 
+                       onClick={startGlobalGame}
+                       className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold"
+                    >
+                       <PlayCircle size={18} /> Start Game
+                    </button>
+                    <button 
+                       onClick={resetGameData}
+                       className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold"
+                    >
+                       <Trash2 size={18} /> Reset Alles
+                    </button>
+                 </div>
+              </div>
+           )}
+        </div>
+     );
+  }
+
+  // GAME SCHERM
   const canSubmit = isGameComplete();
   const currentScore = connections.reduce((acc, conn) => {
-      // Local score calculation for display after finish
       const q = GAME_DATA.find(x => x.id === conn.questionId);
       if(!q) return acc;
       let s = 0;
@@ -365,7 +490,7 @@ export default function App() {
             <h2 className="text-lg font-bold text-white">Muziek Connectie</h2>
           </div>
           
-          {status === 'playing' && (
+          {localStatus === 'playing' && (
             <button 
               onClick={submitScore}
               disabled={!canSubmit}
@@ -381,9 +506,9 @@ export default function App() {
               <span className="sm:hidden">Finish</span>
             </button>
           )}
-          {status === 'finished' && (
+          {localStatus === 'finished' && (
             <div className="text-green-400 font-bold text-xl">
-              Jouw Score: {currentScore}
+              Score: {currentScore}
             </div>
           )}
         </div>
@@ -398,14 +523,15 @@ export default function App() {
              
              {/* Finished Section */}
              <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-yellow-500">
-                  <Trophy /> Ranglijst
-                </h3>
+                <div className="flex justify-between items-start mb-6">
+                   <h3 className="text-xl font-bold flex items-center gap-2 text-yellow-500">
+                     <Trophy /> Ranglijst
+                   </h3>
+                </div>
+
                 <div className="space-y-3">
                   {leaderboard.map((entry, idx) => {
-                     // Calculate Total Score (Base + Bonus)
                      const totalScore = entry.score + (entry.isFastest ? 1 : 0);
-                     
                      return (
                       <div key={entry.id} className={`relative flex justify-between items-center p-4 rounded-lg border ${entry.teamName === teamName ? 'bg-purple-900/30 border-purple-500' : 'bg-slate-900 border-slate-800'}`}>
                          <div className="flex items-center gap-4">
@@ -438,30 +564,6 @@ export default function App() {
                   )}
                 </div>
              </div>
-
-            {/* Active Players Section */}
-             <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl opacity-80">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-400">
-                  <Loader2 className="animate-spin" /> Onderweg
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {activePlayers.map((player) => (
-                    <div key={player.id} className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex justify-between items-center">
-                       <span className="font-medium text-slate-300">{player.teamName}</span>
-                       <div className="flex items-center gap-2">
-                         <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
-                           <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${player.progress || 0}%` }}></div>
-                         </div>
-                         <span className="text-xs text-slate-500 w-8 text-right">{player.progress || 0}%</span>
-                       </div>
-                    </div>
-                  ))}
-                  {activePlayers.length === 0 && (
-                    <p className="text-slate-500 text-center py-2 italic col-span-full">Iedereen is gefinisht!</p>
-                  )}
-                </div>
-             </div>
-
           </div>
         )}
 
@@ -494,11 +596,11 @@ export default function App() {
                     key={year}
                     ref={el => setItemRef(`y-${year}`, el)}
                     onClick={() => handleYearClick(year)}
-                    disabled={!selectedQuestionId || status === 'finished'}
+                    disabled={!selectedQuestionId || localStatus === 'finished'}
                     className={`
                       p-4 rounded-lg text-center transition-all border-2
-                      ${selectedQuestionId && status !== 'finished' ? 'cursor-pointer active:scale-95' : ''}
-                      ${status === 'finished' 
+                      ${selectedQuestionId && localStatus !== 'finished' ? 'cursor-pointer active:scale-95' : ''}
+                      ${localStatus === 'finished' 
                         ? 'bg-slate-800 border-slate-600 text-slate-400' 
                         : 'bg-slate-800 border-indigo-500/30 text-indigo-300'}
                     `}
@@ -554,8 +656,8 @@ export default function App() {
                       onClick={() => handleTrackClick(track.id)}
                       className={`
                         p-3 rounded-lg border-2 bg-slate-800 transition-all text-center
-                        ${selectedQuestionId && status !== 'finished' ? 'cursor-pointer hover:border-pink-500' : ''}
-                        ${connectedTo && status !== 'finished' ? 'border-slate-500' : 'border-slate-700'}
+                        ${selectedQuestionId && localStatus !== 'finished' ? 'cursor-pointer hover:border-pink-500' : ''}
+                        ${connectedTo && localStatus !== 'finished' ? 'border-slate-500' : 'border-slate-700'}
                       `}
                     >
                         <div className="flex flex-col items-center gap-2">
@@ -563,7 +665,7 @@ export default function App() {
                              <Play size={16} fill="currentColor" />
                            </button>
                            <span className="font-bold text-sm text-slate-300 block">{track.label}</span>
-                           {status === 'finished' && <span className="text-xs text-green-400 animate-pulse">{track.title}</span>}
+                           {localStatus === 'finished' && <span className="text-xs text-green-400 animate-pulse">{track.title}</span>}
                         </div>
                     </div>
                   );
@@ -586,6 +688,30 @@ export default function App() {
             <span className="text-xs">Scorebord</span>
          </button>
       </nav>
+
+      {/* Admin Panel Overlay */}
+      {isAdmin && (
+         <div className="fixed bottom-4 left-4 right-4 bg-slate-800 border-2 border-purple-500 p-4 rounded-xl shadow-2xl z-50 flex flex-col sm:flex-row justify-between items-center gap-4 animate-slide-up">
+            <div className="flex items-center gap-2">
+               <Lock className="text-purple-500" size={20} />
+               <span className="font-bold text-white">Admin Paneel</span>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+               <button 
+                  onClick={startGlobalGame}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold"
+               >
+                  <PlayCircle size={18} /> Start Game
+               </button>
+               <button 
+                  onClick={resetGameData}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold"
+               >
+                  <Trash2 size={18} /> Reset Alles
+               </button>
+            </div>
+         </div>
+      )}
 
     </div>
   );
