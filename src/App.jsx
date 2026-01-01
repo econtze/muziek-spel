@@ -60,27 +60,26 @@ const GAME_DATA = [
   { id: 'q1', question: "Welk nummer stond op nummer 1 toen de oudste van ons werd geboren en in welk jaar was dit?", correctYear: '1995', correctTrackId: 't1' },
   { id: 'q2', question: "Welk nummer stond op nummer 1 toen de jongste van ons werd geboren en in welk jaar was dit?", correctYear: '2003', correctTrackId: 't2' },
   { id: 'q3', question: "Welk nummer is typerend voor de wintersport in Solden en in welk jaar was dit?", correctYear: '2023', correctTrackId: 't3' },
-  { id: 'q4', question: "Welke iconische solo is gezongen op de avond van 4-11-.... en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't4' },
-  { id: 'q5', question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2014', correctTrackId: 't5' },
+  { id: 'q4', question: "Welke iconische solo is gezongen op de avond van 4-11-.... en in welk jaar was dit?", correctYear: '2014', correctTrackId: 't4' },
+  { id: 'q5', question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't5' },
   { id: 'q6', question: "Op welk nummer kwam de eerste bruidegom van onze vriendengroep oplopen en in welk jaar was dit?", correctYear: '2024', correctTrackId: 't6' },
   { id: 'q7', question: "Wie trad er op de laatste editie van WWW en in welk jaar was dit?", correctYear: '2025', correctTrackId: 't7' },
   { id: 'q8', question: "Welk nummer was ongelovelijk populair tijdens onze vakantie in Malta en in welk jaar was dit?", correctYear: '2016', correctTrackId: 't8' },
 ];
 
-// Jaartallen
-const YEARS = ['1995', '2003', '2012', '2016', '2014', '2023', '2024', '2025']; 
+// Jaartallen (Aangepast naar 2014 en 2012 correctie)
+const YEARS = ['1995', '2003', '2012', '2014', '2016', '2023', '2024', '2025']; 
 
-// Tracks (GECORRIGEERDE PADEN: '/audio/...' in plaats van 'public/Audio/...')
-// Zorg ervoor dat de map in je project 'public/audio' heet (kleine letters)
+// Tracks
 const TRACKS = [
-   { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: '/audio/track1.mp3' },
-   { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/track2.mp3' },
-   { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: '/audio/track3.mp3' },
-   { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: '/audio/track4.mp3' },
-   { id: 't5', label: 'Track 5', title: 'Canto ostinato - Simeon ten Holt', src: '/audio/track5.mp3' },
-   { id: 't6', label: 'Track 6', title: 'Love Story - Taylor swift', src: '/audio/track6.mp3' },
-   { id: 't7', label: 'Track 7', title: 'Bek Vol Beschuit - Barfbag', src: '/audio/track7.mp3' },
-   { id: 't8', label: 'Track 8', title: "Will Griggg's On Fire - DJ Kicken", src: '/audio/track8.mp3' },
+  { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: '/audio/track1.mp3' },
+  { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/track2.mp3' },
+  { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: '/audio/track3.mp3' },
+  { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: '/audio/track4.mp3' },
+  { id: 't5', label: 'Track 5', title: 'Canto ostinato - Simeon ten Holt', src: '/audio/track5.mp3' },
+  { id: 't6', label: 'Track 6', title: 'Love Story - Taylor swift', src: '/audio/track6.mp3' },
+  { id: 't7', label: 'Track 7', title: 'Bek Vol Beschuit - Barfbag', src: '/audio/track7.mp3' },
+  { id: 't8', label: 'Track 8', title: "Will Griggg's On Fire - DJ Kicken", src: '/audio/track8.mp3' },
 ];
 
 // --- Sub Components ---
@@ -110,8 +109,7 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
     try {
         const audio = new Audio(item.src);
         audio.onerror = () => {
-            // Duidelijkere foutmelding voor de gebruiker
-            alert(`Kan bestand niet afspelen:\n${item.src}\n\nControleer of het bestand 'trackX.mp3' in de map 'public/audio/' staat (let op hoofdletters!).`);
+            alert(`Kan bestand niet afspelen:\n${item.src}\n\nCheck of het bestand in 'public/audio/' staat.`);
             setPlayingId(null);
         };
         audioRef.current = audio;
@@ -147,21 +145,12 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
              const itemLabel = item.label || item; 
              const isPlaying = playingId === itemId;
              
-             const timesUsed = connections.filter(c => 
-                 (type === 'year' ? c.year === itemId : c.trackId === itemId)
-             ).length;
-             
+             const timesUsed = connections.filter(c => (type === 'year' ? c.year === itemId : c.trackId === itemId)).length;
              const totalAvailable = items.filter(i => (i.id || i) === itemId).length;
-             
-             const isSelectedHere = connections.find(c => 
-                c.questionId === currentQuestionId && 
-                (type === 'year' ? c.year === itemId : c.trackId === itemId)
-             );
+             const isSelectedHere = connections.find(c => c.questionId === currentQuestionId && (type === 'year' ? c.year === itemId : c.trackId === itemId));
              
              const isFullyBooked = timesUsed >= totalAvailable;
              const isUsedByOthers = isFullyBooked && !isSelectedHere;
-             const usedByConnection = connections.find(c => (type === 'year' ? c.year === itemId : c.trackId === itemId) && c.questionId !== currentQuestionId);
-             const usedByQuestion = usedByConnection ? GAME_DATA.find(q => q.id === usedByConnection.questionId) : null;
 
              return (
               <div key={`${itemId}-${index}`} className={`flex flex-col rounded-2xl border-2 transition-all group overflow-hidden ${isSelectedHere ? 'bg-green-900/30 border-green-500' : (isUsedByOthers ? 'bg-slate-800/50 border-orange-500/30' : 'bg-slate-800 border-slate-700 hover:border-indigo-400')}`}>
@@ -175,6 +164,7 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
                        </button>
                    )}
 
+                   {/* DE KEUZE KNOP - GECENTREERD ZONDER EXTRA TEKST */}
                    <button onClick={() => handleConfirmSelection(itemId)} className="flex-grow flex items-center justify-center text-center h-full">
                          <div className="flex flex-col items-center gap-1 w-full">
                             <div className="flex items-center gap-2 justify-center">
@@ -182,7 +172,6 @@ const SelectionModal = ({ isOpen, title, items, onSelect, onClose, type, connect
                                 <span className="font-bold text-lg text-slate-200 leading-tight">{itemLabel}</span>
                             </div>
                             {isSelectedHere && <span className="text-green-400 text-xs font-bold mt-1">✓ Gekozen</span>}
-                            {isUsedByOthers && <span className="text-orange-400 text-xs font-bold mt-1">⚠️ In gebruik</span>}
                          </div>
                    </button>
                 </div>
@@ -684,7 +673,7 @@ function GameContent() {
                         <button 
                            onClick={() => setActiveModal({ type: 'year', questionId: q.id })}
                            disabled={isPaused}
-                           className={`p-3 rounded-2xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-2 transition-all min-h-[7rem] h-auto shadow-sm
+                           className={`p-3 rounded-2xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-2 transition-all min-h-[8rem] h-auto shadow-sm
                               ${selectedYear 
                                  ? 'bg-blue-950 border-blue-500/50 text-blue-200 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' 
                                  : 'bg-slate-950 border-slate-800 text-slate-600 hover:border-slate-700 hover:bg-slate-900'}`}
@@ -698,7 +687,7 @@ function GameContent() {
                         <button 
                            onClick={() => setActiveModal({ type: 'track', questionId: q.id })}
                            disabled={isPaused}
-                           className={`p-3 rounded-2xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-2 transition-all min-h-[7rem] h-auto shadow-sm
+                           className={`p-3 rounded-2xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-2 transition-all min-h-[8rem] h-auto shadow-sm
                               ${selectedTrackId 
                                  ? 'bg-pink-950 border-pink-500/50 text-pink-200 shadow-[inset_0_0_20px_rgba(236,72,153,0.1)]' 
                                  : 'bg-slate-950 border-slate-800 text-slate-600 hover:border-slate-700 hover:bg-slate-900'}`}
