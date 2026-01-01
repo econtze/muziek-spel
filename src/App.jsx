@@ -61,7 +61,7 @@ const GAME_DATA = [
   { id: 'q2', question: "Welk nummer stond op nummer 1 toen de jongste van ons werd geboren en in welk jaar was dit?", correctYear: '2003', correctTrackId: 't2' },
   { id: 'q3', question: "Welk nummer is typerend voor de wintersport in Solden en in welk jaar was dit?", correctYear: '2023', correctTrackId: 't3' },
   { id: 'q4', question: "Welke iconische solo is gezongen op de avond van 4-11-.... en in welk jaar was dit?", correctYear: '2014', correctTrackId: 't4' },
-  { id: 'q5', question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't5' },
+  { id: 'q5', git add .question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't5' },
   { id: 'q6', question: "Op welk nummer kwam de eerste bruidegom van onze vriendengroep oplopen en in welk jaar was dit?", correctYear: '2024', correctTrackId: 't6' },
   { id: 'q7', question: "Wie trad er op de laatste editie van WWW en in welk jaar was dit?", correctYear: '2025', correctTrackId: 't7' },
   { id: 'q8', question: "Welk nummer was ongelovelijk populair tijdens onze vakantie in Malta en in welk jaar was dit?", correctYear: '2016', correctTrackId: 't8' },
@@ -73,13 +73,13 @@ const YEARS = ['1995', '2003', '2012', '2014', '2016', '2023', '2024', '2025'];
 // Tracks (Met Hoofdletters in paden!)
 const TRACKS = [
   { id: 't1', label: 'Track 1', title: 'Het is een nacht - Guus Meeuwis', src: '/audio/track1.mp3' },
-  { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/Track2.mp3' },
-  { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: '/audio/Track3.mp3' },
-  { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: '/audio/Track4.mp3' },
-  { id: 't5', label: 'Track 5', title: 'Canto ostinato - Simeon ten Holt', src: '/audio/Track5.mp3' },
-  { id: 't6', label: 'Track 6', title: 'Love Story - Taylor swift', src: '/audio/Track6.mp3' },
-  { id: 't7', label: 'Track 7', title: 'Bek Vol Beschuit - Barfbag', src: '/audio/Track7.mp3' },
-  { id: 't8', label: 'Track 8', title: "Will Griggg's On Fire - DJ Kicken", src: '/audio/Track8.mp3' },
+  { id: 't2', label: 'Track 2', title: 'Feel - Robbin Williams', src: '/audio/track2.mp3' },
+  { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes - Discodip', src: '/audio/track3.mp3' },
+  { id: 't4', label: 'Track 4', title: 'Looking too closely - Fink', src: '/audio/track4.mp3' },
+  { id: 't5', label: 'Track 5', title: 'Canto ostinato - Simeon ten Holt', src: '/audio/track5.mp3' },
+  { id: 't6', label: 'Track 6', title: 'Love Story - Taylor swift', src: '/audio/track6.mp3' },
+  { id: 't7', label: 'Track 7', title: 'Bek Vol Beschuit - Barfbag', src: '/audio/track7.mp3' },
+  { id: 't8', label: 'Track 8', title: "Will Griggg's On Fire - DJ Kicken", src: '/audio/track8.mp3' },
 ];
 
 // --- Sub Components ---
