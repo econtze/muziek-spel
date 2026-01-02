@@ -57,8 +57,8 @@ const appId = "muziekspel-8e190";
 
 // --- Game Data ---
 const GAME_DATA = [
-  { id: 'q1', question: "Welk nummer stond op nummer 1 toen de oudste van ons werd geboren en in welk jaar was dit?", correctYear: '1995', correctTrackId: 't1' },
-  { id: 'q2', question: "Welk nummer stond op nummer 1 toen de jongste van ons werd geboren en in welk jaar was dit?", correctYear: '2003', correctTrackId: 't2' },
+  { id: 'q1', question: "Wat is het meest beluisterde nummer in NL het jaar toen de oudste van ons werd geboren en in welk jaar was dit?", correctYear: '1995', correctTrackId: 't1' },
+  { id: 'q2', question: "Wat is het meest beluisterde nummer in NL het jaar toen de jongste van ons werd geboren en in welk jaar was dit?", correctYear: '2003', correctTrackId: 't2' },
   { id: 'q3', question: "Welk nummer is typerend voor de wintersport in Solden en in welk jaar was dit?", correctYear: '2023', correctTrackId: 't3' },
   { id: 'q4', question: "Welke iconische solo is gezongen op de avond van 4-11-.... en in welk jaar was dit?", correctYear: '2014', correctTrackId: 't4' },
   { id: 'q5', question: "Welke muzikale compositie stond centraal in een door een deel van ons gespeelde decembervoorstelling en in welk jaar was dit?", correctYear: '2012', correctTrackId: 't5' },
@@ -72,7 +72,7 @@ const YEARS = ['1995', '2003', '2012', '2014', '2016', '2023', '2024', '2025'];
 // Tracks
 const TRACKS = [
   { id: 't1', label: 'Track 1', title: 'Het is een nacht', artist: 'Guus Meeuwis', releaseYear: '1995', src: '/audio/track1.mp3' },
-  { id: 't2', label: 'Track 2', title: 'Feel', artist: 'Robbin Williams', releaseYear: '2002', src: '/audio/track2.mp3' },
+  { id: 't2', label: 'Track 2', title: 'Feel', artist: 'Robbie Williams', releaseYear: '2002', src: '/audio/track2.mp3' },
   { id: 't3', label: 'Track 3', title: 'Meisjes met ijsjes', artist: 'Discodip', releaseYear: '2023', src: '/audio/track3.mp3' },
   { id: 't4', label: 'Track 4', title: 'Looking too closely', artist: 'Fink', releaseYear: '2014', src: '/audio/track4.mp3' },
   { id: 't5', label: 'Track 5', title: 'Canto ostinato', artist: 'Simeon ten Holt', releaseYear: '1976', src: '/audio/track5.mp3' },
